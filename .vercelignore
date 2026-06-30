@@ -1,0 +1,5 @@
+bot.py
+requirements.txt
+*.py
+*.txt
+__pycache__/
