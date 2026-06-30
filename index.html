@@ -135,6 +135,7 @@
   .particle {
     position: fixed; pointer-events: none; opacity: 0;
     font-size: 24px; animation: fly 1.5s ease-out forwards;
+    z-index: 9999;
   }
   @keyframes fly {
     0% { opacity: 1; transform: translateY(0) scale(1); }
@@ -273,7 +274,7 @@
         <input type="date" class="input" id="meetDate" onchange="saveDate('meetDate')">
       </div>
       <div style="margin-top: 12px;">
-        <div class="setting-label"> Начало отношений</div>
+        <div class="setting-label">Начало отношений</div>
         <input type="date" class="input" id="relationshipDate" onchange="saveDate('relationshipDate')">
       </div>
     </div>
@@ -283,13 +284,10 @@
   const tg = window.Telegram?.WebApp;
   if (tg) { tg.expand(); tg.ready(); }
 
-  // Состояние
-  let state = {
-    sound: true, vibration: true,
-    meetDate: null, relationshipDate: null
-  };
+  // ⚠️ ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ИЗ RAILWAY (БЕЗ косой черты на конце!)
+  const RAILWAY_URL = "https://ТВОЙ-ПРОЕКТ.up.railway.app"; 
 
-  // Web Audio API для звука сердцебиения (работает без внешних файлов!)
+  let state = { sound: true, vibration: true, meetDate: null, relationshipDate: null };
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   let audioCtx = null;
 
@@ -300,150 +298,127 @@
 
   function playHeartbeatSound() {
     if (!state.sound || !audioCtx) return;
-    
     const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc.frequency.value = 80; // Низкий тон для "тук"
-    gain.gain.setValueAtTime(0.6, now);
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = 80; gain.gain.setValueAtTime(0.6, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.start(now); osc.stop(now + 0.15);
     
-    osc.start(now);
-    osc.stop(now + 0.15);
-    
-    // Второй удар "тук"
-    const osc2 = audioCtx.createOscillator();
-    const gain2 = audioCtx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
-    osc2.frequency.value = 80;
-    gain2.gain.setValueAtTime(0.6, now + 0.2);
+    const osc2 = audioCtx.createOscillator(); const gain2 = audioCtx.createGain();
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.frequency.value = 80; gain2.gain.setValueAtTime(0.6, now + 0.2);
     gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-    osc2.start(now + 0.2);
-    osc2.stop(now + 0.35);
+    osc2.start(now + 0.2); osc2.stop(now + 0.35);
   }
 
-  // Загрузка настроек
   function loadState() {
     const saved = JSON.parse(localStorage.getItem('hb_state') || '{}');
     state = { ...state, ...saved };
-    
     document.getElementById('soundToggle').classList.toggle('active', state.sound);
     document.getElementById('vibrationToggle').classList.toggle('active', state.vibration);
     if (state.meetDate) document.getElementById('meetDate').value = state.meetDate;
     if (state.relationshipDate) document.getElementById('relationshipDate').value = state.relationshipDate;
-    
-    updateCountdown();
-    updateDaysTogether();
-    loadStats();
+    updateCountdown(); updateDaysTogether(); loadStats();
+  }
+  function saveState() { localStorage.setItem('hb_state', JSON.stringify(state)); }
+  function vibrate(pattern) { if (state.vibration && navigator.vibrate) { navigator.vibrate(pattern); } }
+
+  // Отправка клика на бэкенд (без закрытия Mini App)
+  function sendDataToBot(emotionType) {
+    const userId = tg?.initDataUnsafe?.user?.id || 0;
+    if (!userId) return;
+
+    fetch(`${RAILWAY_URL}/api/click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, emotion: emotionType })
+    }).catch(err => console.error("Ошибка HTTP запроса отправки:", err));
   }
 
-  function saveState() {
-    localStorage.setItem('hb_state', JSON.stringify(state));
-  }
-
-  // Вибрация
-  function vibrate(pattern) {
-    if (state.vibration && navigator.vibrate) {
-      navigator.vibrate(pattern);
-    }
-  }
-
-  // Отправка эмоций
-  function sendEmotion(type) {
-    initAudio(); // Инициализируем аудио по клику
-    playHeartbeatSound();
-    vibrate([150, 100, 150]);
-    
-    const dataMap = {
-      'miss': 'emotion_miss', 'love': 'emotion_love',
-      'think': 'emotion_think', 'kiss': 'emotion_kiss'
-    };
-    
-    createParticles(type === 'kiss' ? '😘' : type === 'love' ? '' : '💫');
-    showToast('💗 Сигнал отправлен!');
-    
-    if (tg) tg.sendData(dataMap[type]);
-    incrementStat('totalSent');
-  }
-
-  // Клик по большому сердцу
-  document.getElementById('heart').addEventListener('click', () => {
+  // Приём сигнала партнером (анимации, звуки, вибро внутри открытого Mini App)
+  function triggerIncomingSignal(emotion) {
     initAudio();
     playHeartbeatSound();
-    vibrate([200, 100, 200, 400, 200, 100, 200]);
-    createParticles('❤️');
-    showToast('💗 Сигнал отправлен!');
     
-    if (tg) tg.sendData('miss_you');
-    incrementStat('totalSent');
+    const patterns = {
+      'miss_you': [200, 100, 200, 400, 200, 100, 200],
+      'emotion_miss': [300, 200, 300],
+      'emotion_love': [150, 100, 150, 100, 150],
+      'emotion_think': [100, 150, 100],
+      'emotion_kiss': [200, 100, 200]
+    };
+    vibrate(patterns[emotion] || [200, 100, 200]);
+    
+    const emojiMap = { 'miss_you': '❤️', 'emotion_miss': '💭', 'emotion_love': '💖', 'emotion_think': '💫', 'emotion_kiss': '😘' };
+    createParticles(emojiMap[emotion] || '💓');
+    showToast('💓 Партнёр прислал сигнал!');
     
     document.getElementById('heart').classList.add('pulse');
     setTimeout(() => document.getElementById('heart').classList.remove('pulse'), 1200);
-  });
-
-  // Приём сигнала от партнёра (через URL ?beat=1)
-  const params = new URLSearchParams(location.search);
-  if (params.get('beat') === '1') {
-    const emotion = params.get('emotion') || 'heartbeat';
-    
-    // Инициализируем аудио и вибро с небольшой задержкой
-    setTimeout(() => {
-      initAudio();
-      playHeartbeatSound();
-      
-      const patterns = {
-        'heartbeat': [200, 100, 200, 400, 200, 100, 200],
-        'miss': [300, 200, 300, 200, 300],
-        'love': [150, 100, 150, 100, 150, 100, 150, 300, 150],
-        'think': [100, 150, 100, 150, 100],
-        'kiss': [200, 100, 200]
-      };
-      vibrate(patterns[emotion] || patterns['heartbeat']);
-      
-      createParticles('💖');
-      showToast('💓 Партнёр скучает!');
-      
-      document.getElementById('heart').classList.add('pulse');
-      setTimeout(() => document.getElementById('heart').classList.remove('pulse'), 1500);
-    }, 300);
   }
 
-  // Частицы
+  // Постоянная проверка новых кликов в фоне (каждые 1.5 сек)
+  function startSignalListener() {
+    const userId = tg?.initDataUnsafe?.user?.id || 0;
+    if (!userId) return;
+
+    setInterval(() => {
+      fetch(`${RAILWAY_URL}/api/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "ok" && data.signals && data.signals.length > 0) {
+          data.signals.forEach(sig => {
+            triggerIncomingSignal(sig.emotion);
+          });
+        }
+      })
+      .catch(err => console.error("Ошибка опроса сервера:", err));
+    }, 1500); 
+  }
+
+  function sendEmotion(type) {
+    initAudio(); playHeartbeatSound(); vibrate([150, 100, 150]);
+    const dataMap = { 'miss': 'emotion_miss', 'love': 'emotion_love', 'think': 'emotion_think', 'kiss': 'emotion_kiss' };
+    const emojiMap = { 'miss': '💭', 'love': '💖', 'think': '💫', 'kiss': '😘' };
+    createParticles(emojiMap[type]);
+    showToast('💗 Сигнал отправлен!');
+    incrementStat('totalSent');
+    sendDataToBot(dataMap[type]);
+  }
+
+  document.getElementById('heart').addEventListener('click', () => {
+    initAudio(); playHeartbeatSound(); vibrate([200, 100, 200]);
+    createParticles('❤️'); showToast('💗 Сигнал отправлен!'); incrementStat('totalSent');
+    document.getElementById('heart').classList.add('pulse');
+    setTimeout(() => document.getElementById('heart').classList.remove('pulse'), 1200);
+    sendDataToBot('miss_you');
+  });
+
   function createParticles(emoji) {
     for (let i = 0; i < 8; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      p.textContent = emoji;
-      p.style.left = (Math.random() * 80 + 10) + '%';
-      p.style.bottom = '20%';
-      p.style.animationDelay = (Math.random() * 0.5) + 's';
-      document.body.appendChild(p);
+      const p = document.createElement('div'); p.className = 'particle'; p.textContent = emoji;
+      p.style.left = (Math.random() * 80 + 10) + '%'; p.style.bottom = '20%';
+      p.style.animationDelay = (Math.random() * 0.5) + 's'; document.body.appendChild(p);
       setTimeout(() => p.remove(), 2000);
     }
   }
 
-  // Toast
   function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
+    const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  // Тема
   function toggleTheme() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
     localStorage.setItem('hb_theme', isDark ? 'light' : 'dark');
   }
   document.body.setAttribute('data-theme', localStorage.getItem('hb_theme') || 'light');
-
-  // Настройки
   function openSettings() { document.getElementById('settingsModal').classList.add('show'); }
   function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
   
@@ -451,35 +426,32 @@
     state[key] = !state[key];
     document.getElementById(key + 'Toggle').classList.toggle('active', state[key]);
     saveState();
-    showToast(key === 'sound' ? (state.sound ? '🔊 Вкл' : '🔇 Выкл') : (state.vibration ? '📳 Вкл' : '📴 Выкл'));
   }
 
+  document.getElementById('meetDate').addEventListener('change', () => saveDate('meetDate'));
+  document.getElementById('relationshipDate').addEventListener('change', () => saveDate('relationshipDate'));
+
   function saveDate(key) {
-    state[key] = document.getElementById(key).value;
-    saveState();
+    state[key] = document.getElementById(key).value; saveState();
     if (key === 'meetDate') updateCountdown();
     if (key === 'relationshipDate') updateDaysTogether();
-    showToast('✅ Сохранено');
   }
 
   function updateCountdown() {
-    const el = document.getElementById('countdown');
-    if (!state.meetDate) { el.textContent = '-- дн.'; return; }
+    const el = document.getElementById('countdown'); if (!state.meetDate) { el.textContent = '-- дн.'; return; }
     const days = Math.ceil((new Date(state.meetDate) - new Date()) / 86400000);
     el.textContent = days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня! ' : 'Прошло';
   }
 
   function updateDaysTogether() {
-    const el = document.getElementById('daysTogether');
-    if (!state.relationshipDate) { el.textContent = 'Вместе: --'; return; }
+    const el = document.getElementById('daysTogether'); if (!state.relationshipDate) { el.textContent = 'Вместе: --'; return; }
     const days = Math.floor((new Date() - new Date(state.relationshipDate)) / 86400000);
     el.textContent = `Вместе: ${days} дн.`;
   }
 
   function incrementStat(key) {
     const k = key === 'totalSent' ? 'hb_total' : 'hb_streak';
-    let v = parseInt(localStorage.getItem(k) || '0') + 1;
-    localStorage.setItem(k, v);
+    let v = parseInt(localStorage.getItem(k) || '0') + 1; localStorage.setItem(k, v);
     document.getElementById(key).textContent = v;
   }
 
@@ -488,8 +460,8 @@
     document.getElementById('streak').textContent = localStorage.getItem('hb_streak') || '0';
   }
 
-  // Старт
   loadState();
+  startSignalListener(); // Старт real-time проверки
 </script>
 </body>
 </html>
