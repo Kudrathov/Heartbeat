@@ -2,154 +2,98 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Heartbeat 💓</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   
   :root {
-    --bg-gradient-1: #ff6b9d;
-    --bg-gradient-2: #c44569;
-    --text-color: #fff;
-    --card-bg: rgba(255,255,255,0.15);
+    --bg-1: #ff6b9d; --bg-2: #c44569;
+    --text: #fff; --card: rgba(255,255,255,0.2);
     --shadow: rgba(0,0,0,0.2);
   }
   
   [data-theme="dark"] {
-    --bg-gradient-1: #1a1a2e;
-    --bg-gradient-2: #16213e;
-    --text-color: #eaeaea;
-    --card-bg: rgba(255,255,255,0.05);
+    --bg-1: #1a1a2e; --bg-2: #16213e;
+    --text: #eaeaea; --card: rgba(255,255,255,0.08);
     --shadow: rgba(0,0,0,0.5);
   }
   
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
-    color: var(--text-color);
+    background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
+    color: var(--text);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
-    transition: all 0.3s ease;
+    transition: background 0.5s;
   }
   
-  /* Header */
   .header {
-    padding: 20px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     backdrop-filter: blur(10px);
   }
   
-  .couple-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .couple-info { display: flex; align-items: center; gap: 12px; }
   
   .avatar {
-    width: 50px;
-    height: 50px;
+    width: 45px; height: 45px;
     border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.5);
-    object-fit: cover;
-    box-shadow: 0 4px 15px var(--shadow);
+    border: 2px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
   }
   
-  .couple-names {
-    font-size: 14px;
-    font-weight: 600;
-  }
+  .couple-names { font-size: 14px; font-weight: 600; line-height: 1.3; }
+  .couple-names .days { font-size: 11px; opacity: 0.8; font-weight: 400; }
   
-  .couple-names .days {
-    font-size: 12px;
-    opacity: 0.8;
-    margin-top: 2px;
-  }
-  
-  .header-actions {
-    display: flex;
-    gap: 10px;
-  }
+  .header-actions { display: flex; gap: 8px; }
   
   .icon-btn {
-    background: var(--card-bg);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: var(--card); border: none; border-radius: 50%;
+    width: 38px; height: 38px; cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(10px);
-    box-shadow: 0 4px 15px var(--shadow);
     transition: transform 0.2s;
   }
-  
   .icon-btn:active { transform: scale(0.9); }
   
-  /* Main Content */
   .main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 20px;
   }
   
-  /* Countdown */
   .countdown {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 20px 30px;
-    margin-bottom: 30px;
-    text-align: center;
-    box-shadow: 0 8px 32px var(--shadow);
+    background: var(--card); backdrop-filter: blur(20px);
+    border-radius: 20px; padding: 15px 25px;
+    margin-bottom: 20px; text-align: center;
     border: 1px solid rgba(255,255,255,0.1);
+    width: 100%; max-width: 320px;
   }
+  .countdown-label { font-size: 11px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+  .countdown-value { font-size: 28px; font-weight: 700; }
   
-  .countdown-label {
-    font-size: 12px;
-    opacity: 0.8;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  
-  .countdown-value {
-    font-size: 32px;
-    font-weight: 700;
-  }
-  
-  /* Heart Container */
-  .heart-container {
-    position: relative;
-    margin: 20px 0;
-  }
+  .heart-container { position: relative; margin: 10px 0 30px; }
   
   .heart {
-    font-size: 180px;
-    cursor: pointer;
-    user-select: none;
-    filter: drop-shadow(0 10px 40px rgba(0,0,0,0.3));
-    transition: transform 0.1s;
+    font-size: 160px; cursor: pointer; user-select: none;
+    filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
     animation: float 3s ease-in-out infinite;
+    transition: transform 0.1s;
   }
-  
-  .heart:active { transform: scale(0.85); }
+  .heart:active { transform: scale(0.9); }
   .heart.pulse { animation: heartbeat 1.2s ease-in-out; }
   
   @keyframes float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-20px); }
+    50% { transform: translateY(-15px); }
   }
-  
   @keyframes heartbeat {
     0%, 100% { transform: scale(1); }
     15% { transform: scale(1.25); }
@@ -158,263 +102,129 @@
     60% { transform: scale(1); }
   }
   
-  /* Emotion Buttons */
+  .stats { display: flex; gap: 15px; margin-bottom: 25px; }
+  .stat {
+    background: var(--card); backdrop-filter: blur(10px);
+    padding: 12px 20px; border-radius: 15px; text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-label { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+  
   .emotions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    width: 100%;
-    max-width: 350px;
-    margin-top: 30px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; width: 100%; max-width: 320px;
   }
   
   .emotion-btn {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 20px;
-    padding: 20px;
-    cursor: pointer;
-    color: var(--text-color);
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 8px 32px var(--shadow);
-    transition: all 0.3s;
+    background: var(--card); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 18px;
+    padding: 15px 10px; cursor: pointer; color: var(--text);
+    font-size: 13px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: transform 0.2s;
   }
-  
   .emotion-btn:active { transform: scale(0.95); }
-  .emotion-btn .emoji { font-size: 40px; }
+  .emotion-btn .emoji { font-size: 32px; }
   
   .emotion-btn.miss { background: linear-gradient(135deg, #ff6b9d, #ff8e53); }
   .emotion-btn.love { background: linear-gradient(135deg, #c44569, #ff6b9d); }
   .emotion-btn.think { background: linear-gradient(135deg, #5f27cd, #341f97); }
   .emotion-btn.kiss { background: linear-gradient(135deg, #ff9ff3, #f368e0); }
   
-  /* Particles */
   .particle {
-    position: fixed;
-    pointer-events: none;
-    opacity: 0;
-    font-size: 30px;
-    animation: fly 2s ease-out forwards;
+    position: fixed; pointer-events: none; opacity: 0;
+    font-size: 24px; animation: fly 1.5s ease-out forwards;
   }
-  
   @keyframes fly {
     0% { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(-500px) scale(0); }
+    100% { opacity: 0; transform: translateY(-400px) scale(0.5); }
   }
   
-  /* Toast Notification */
   .toast {
-    position: fixed;
-    bottom: 100px;
-    left: 50%;
+    position: fixed; bottom: 80px; left: 50%;
     transform: translateX(-50%) translateY(100px);
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    padding: 15px 30px;
-    border-radius: 30px;
-    box-shadow: 0 8px 32px var(--shadow);
-    opacity: 0;
-    transition: all 0.3s;
-    z-index: 1000;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(20px);
+    padding: 12px 24px; border-radius: 25px;
+    opacity: 0; transition: all 0.3s; z-index: 1000;
+    font-size: 14px; font-weight: 500;
   }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-  
-  /* Settings Modal */
   .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(10px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    padding: 20px;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 2000; padding: 20px;
   }
-  
   .modal.show { display: flex; }
   
   .modal-content {
-    background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
-    border-radius: 30px;
-    padding: 30px;
-    max-width: 400px;
-    width: 100%;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
+    border-radius: 25px; padding: 25px;
+    max-width: 350px; width: 100%; position: relative;
+    border: 1px solid rgba(255,255,255,0.2);
   }
-  
-  .modal-title {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    text-align: center;
-  }
+  .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
   
   .setting-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
   }
+  .setting-label { font-size: 15px; }
   
-  .setting-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 16px;
-  }
-  
-  /* Toggle Switch */
   .toggle {
-    width: 50px;
-    height: 26px;
-    background: rgba(255,255,255,0.3);
-    border-radius: 13px;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.3s;
+    width: 46px; height: 24px; background: rgba(255,255,255,0.3);
+    border-radius: 12px; position: relative; cursor: pointer; transition: background 0.3s;
   }
-  
   .toggle.active { background: #4cd964; }
-  
   .toggle::after {
-    content: '';
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    background: white;
-    border-radius: 50%;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.3s;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    content: ''; position: absolute; width: 20px; height: 20px;
+    background: white; border-radius: 50%; top: 2px; left: 2px;
+    transition: transform 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
+  .toggle.active::after { transform: translateX(22px); }
   
-  .toggle.active::after { transform: translateX(24px); }
-  
-  /* Input */
   .input {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.2);
-    color: var(--text-color);
-    font-size: 16px;
-    margin-top: 5px;
+    width: 100%; padding: 10px; border: none; border-radius: 10px;
+    background: rgba(255,255,255,0.2); color: var(--text);
+    font-size: 15px; margin-top: 8px; outline: none;
   }
-  
   .input::placeholder { color: rgba(255,255,255,0.6); }
   
-  .btn-primary {
-    width: 100%;
-    padding: 15px;
-    background: white;
-    color: var(--bg-gradient-1);
-    border: none;
-    border-radius: 15px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: transform 0.2s;
-  }
-  
-  .btn-primary:active { transform: scale(0.98); }
-  
   .close-modal {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: none;
-    border: none;
-    color: var(--text-color);
-    font-size: 28px;
-    cursor: pointer;
-  }
-  
-  /* Stats */
-  .stats {
-    display: flex;
-    gap: 20px;
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .stat {
-    background: var(--card-bg);
-    backdrop-filter: blur(10px);
-    padding: 15px 25px;
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: 0 4px 15px var(--shadow);
-  }
-  
-  .stat-value {
-    font-size: 28px;
-    font-weight: 700;
-  }
-  
-  .stat-label {
-    font-size: 12px;
-    opacity: 0.8;
-    margin-top: 5px;
-  }
-  
-  /* Responsive */
-  @media (max-width: 480px) {
-    .heart { font-size: 140px; }
-    .emotions { grid-template-columns: 1fr; }
+    position: absolute; top: 15px; right: 15px;
+    background: none; border: none; color: var(--text);
+    font-size: 24px; cursor: pointer;
   }
 </style>
 </head>
 <body>
-  <!-- Header -->
+
   <div class="header">
     <div class="couple-info">
-      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=me" alt="Me" class="avatar" id="myAvatar">
+      <div class="avatar">👤</div>
       <div class="couple-names">
         <div>Ты & ❤️ Партнёр</div>
-        <div class="days" id="daysTogether">Вместе: 0 дней</div>
+        <div class="days" id="daysTogether">Вместе: --</div>
       </div>
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
-      <button class="icon-btn" onclick="toggleMusic()">🎵</button>
       <button class="icon-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
 
-  <!-- Main Content -->
   <div class="main">
-    <!-- Countdown -->
     <div class="countdown">
-      <div class="countdown-label">До встречи осталось</div>
-      <div class="countdown-value" id="countdown">-- дней</div>
+      <div class="countdown-label">До встречи</div>
+      <div class="countdown-value" id="countdown">-- дн.</div>
     </div>
 
-    <!-- Heart -->
     <div class="heart-container">
       <div class="heart" id="heart">❤️</div>
     </div>
 
-    <!-- Stats -->
     <div class="stats">
       <div class="stat">
         <div class="stat-value" id="totalSent">0</div>
@@ -426,331 +236,260 @@
       </div>
     </div>
 
-    <!-- Emotion Buttons -->
     <div class="emotions">
       <button class="emotion-btn miss" onclick="sendEmotion('miss')">
-        <span class="emoji">💭</span>
-        <span>Скучаю</span>
+        <span class="emoji">💭</span><span>Скучаю</span>
       </button>
       <button class="emotion-btn love" onclick="sendEmotion('love')">
-        <span class="emoji">💖</span>
-        <span>Люблю</span>
+        <span class="emoji">💖</span><span>Люблю</span>
       </button>
       <button class="emotion-btn think" onclick="sendEmotion('think')">
-        <span class="emoji">💫</span>
-        <span>Думаю о тебе</span>
+        <span class="emoji">💫</span><span>Думаю о тебе</span>
       </button>
       <button class="emotion-btn kiss" onclick="sendEmotion('kiss')">
-        <span class="emoji">😘</span>
-        <span>Поцелуй</span>
+        <span class="emoji">😘</span><span>Поцелуй</span>
       </button>
     </div>
   </div>
 
-  <!-- Toast -->
   <div class="toast" id="toast">💞 Отправлено!</div>
 
-  <!-- Settings Modal -->
   <div class="modal" id="settingsModal">
-    <div class="modal-content" style="position: relative;">
+    <div class="modal-content">
       <button class="close-modal" onclick="closeSettings()">×</button>
       <div class="modal-title">Настройки</div>
       
       <div class="setting-item">
         <div class="setting-label">🔊 Звук</div>
-        <div class="toggle active" id="soundToggle" onclick="toggleSoundSetting()"></div>
+        <div class="toggle active" id="soundToggle" onclick="toggleSetting('sound')"></div>
       </div>
-      
       <div class="setting-item">
         <div class="setting-label">📳 Вибрация</div>
-        <div class="toggle active" id="vibrationToggle" onclick="toggleVibrationSetting()"></div>
-      </div>
-      
-      <div class="setting-item">
-        <div class="setting-label">🎵 Фоновая музыка</div>
-        <div class="toggle" id="musicToggle" onclick="toggleMusicSetting()"></div>
-      </div>
-
-      <div style="margin-top: 20px;">
-        <div class="setting-label">📅 Дата встречи</div>
-        <input type="date" class="input" id="meetDate" onchange="saveMeetDate()">
+        <div class="toggle active" id="vibrationToggle" onclick="toggleSetting('vibration')"></div>
       </div>
 
       <div style="margin-top: 15px;">
-        <div class="setting-label">💕 Дата начала отношений</div>
-        <input type="date" class="input" id="relationshipDate" onchange="saveRelationshipDate()">
+        <div class="setting-label">📅 Дата встречи</div>
+        <input type="date" class="input" id="meetDate" onchange="saveDate('meetDate')">
+      </div>
+      <div style="margin-top: 12px;">
+        <div class="setting-label"> Начало отношений</div>
+        <input type="date" class="input" id="relationshipDate" onchange="saveDate('relationshipDate')">
       </div>
     </div>
   </div>
 
-  <!-- Audio Elements -->
-  <audio id="heartbeatSound" preload="auto">
-    <source src="https://www.soundjay.com/human/sounds/heartbeat-01.mp3" type="audio/mpeg">
-  </audio>
-  
-  <audio id="loveSound" preload="auto">
-    <source src="https://www.soundjay.com/human/sounds/heartbeat-01.mp3" type="audio/mpeg">
-  </audio>
-
-  <audio id="bgMusic" loop preload="auto">
-    <source src="https://www.soundjay.com/misc/sounds/slow-romantic-piano-01.mp3" type="audio/mpeg">
-  </audio>
-
 <script>
   const tg = window.Telegram?.WebApp;
-  tg?.expand();
-  tg?.ready();
+  if (tg) { tg.expand(); tg.ready(); }
 
-  // State
-  let soundEnabled = true;
-  let vibrationEnabled = true;
-  let musicEnabled = false;
-  let meetDate = null;
-  let relationshipDate = null;
+  // Состояние
+  let state = {
+    sound: true, vibration: true,
+    meetDate: null, relationshipDate: null
+  };
 
-  // Load settings from localStorage
-  function loadSettings() {
-    const settings = JSON.parse(localStorage.getItem('heartbeat_settings') || '{}');
-    soundEnabled = settings.sound ?? true;
-    vibrationEnabled = settings.vibration ?? true;
-    musicEnabled = settings.music ?? false;
-    meetDate = settings.meetDate;
-    relationshipDate = settings.relationshipDate;
+  // Web Audio API для звука сердцебиения (работает без внешних файлов!)
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playHeartbeatSound() {
+    if (!state.sound || !audioCtx) return;
     
-    updateToggles();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.frequency.value = 80; // Низкий тон для "тук"
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    
+    osc.start(now);
+    osc.stop(now + 0.15);
+    
+    // Второй удар "тук"
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.frequency.value = 80;
+    gain2.gain.setValueAtTime(0.6, now + 0.2);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    osc2.start(now + 0.2);
+    osc2.stop(now + 0.35);
+  }
+
+  // Загрузка настроек
+  function loadState() {
+    const saved = JSON.parse(localStorage.getItem('hb_state') || '{}');
+    state = { ...state, ...saved };
+    
+    document.getElementById('soundToggle').classList.toggle('active', state.sound);
+    document.getElementById('vibrationToggle').classList.toggle('active', state.vibration);
+    if (state.meetDate) document.getElementById('meetDate').value = state.meetDate;
+    if (state.relationshipDate) document.getElementById('relationshipDate').value = state.relationshipDate;
+    
     updateCountdown();
     updateDaysTogether();
+    loadStats();
   }
 
-  function saveSettings() {
-    localStorage.setItem('heartbeat_settings', JSON.stringify({
-      sound: soundEnabled,
-      vibration: vibrationEnabled,
-      music: musicEnabled,
-      meetDate,
-      relationshipDate
-    }));
+  function saveState() {
+    localStorage.setItem('hb_state', JSON.stringify(state));
   }
 
-  // Heart animation
-  const heart = document.getElementById('heart');
-  const toast = document.getElementById('toast');
+  // Вибрация
+  function vibrate(pattern) {
+    if (state.vibration && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  }
 
-  heart.addEventListener('click', () => {
-    playHeartbeat();
-    createParticles('❤️');
-    showToast('💗 Сигнал отправлен!');
-    tg?.sendData('miss_you');
-    
-    // Increment counter
-    incrementStat('totalSent');
-  });
-
+  // Отправка эмоций
   function sendEmotion(type) {
-    const emotions = {
-      'miss': { emoji: '💭', text: 'Скучаю по тебе!', sound: 'heartbeatSound' },
-      'love': { emoji: '💖', text: 'Люблю тебя!', sound: 'loveSound' },
-      'think': { emoji: '💫', text: 'Думаю о тебе...', sound: 'heartbeatSound' },
-      'kiss': { emoji: '😘', text: 'Посылаю поцелуй!', sound: 'loveSound' }
+    initAudio(); // Инициализируем аудио по клику
+    playHeartbeatSound();
+    vibrate([150, 100, 150]);
+    
+    const dataMap = {
+      'miss': 'emotion_miss', 'love': 'emotion_love',
+      'think': 'emotion_think', 'kiss': 'emotion_kiss'
     };
     
-    const emotion = emotions[type];
-    playSound(emotion.sound);
-    createParticles(emotion.emoji);
-    showToast(emotion.text);
-    tg?.sendData(`emotion_${type}`);
+    createParticles(type === 'kiss' ? '😘' : type === 'love' ? '' : '💫');
+    showToast('💗 Сигнал отправлен!');
     
+    if (tg) tg.sendData(dataMap[type]);
     incrementStat('totalSent');
   }
 
-  function playHeartbeat() {
-    if (!soundEnabled) return;
+  // Клик по большому сердцу
+  document.getElementById('heart').addEventListener('click', () => {
+    initAudio();
+    playHeartbeatSound();
+    vibrate([200, 100, 200, 400, 200, 100, 200]);
+    createParticles('❤️');
+    showToast('💗 Сигнал отправлен!');
     
-    const audio = document.getElementById('heartbeatSound');
-    audio.volume = 0.5;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
+    if (tg) tg.sendData('miss_you');
+    incrementStat('totalSent');
     
-    // Vibration pattern: heartbeat
-    if (vibrationEnabled && navigator.vibrate) {
-      navigator.vibrate([150, 100, 150, 400, 150, 100, 150]);
-    }
+    document.getElementById('heart').classList.add('pulse');
+    setTimeout(() => document.getElementById('heart').classList.remove('pulse'), 1200);
+  });
+
+  // Приём сигнала от партнёра (через URL ?beat=1)
+  const params = new URLSearchParams(location.search);
+  if (params.get('beat') === '1') {
+    const emotion = params.get('emotion') || 'heartbeat';
     
-    heart.classList.add('pulse');
-    setTimeout(() => heart.classList.remove('pulse'), 1500);
+    // Инициализируем аудио и вибро с небольшой задержкой
+    setTimeout(() => {
+      initAudio();
+      playHeartbeatSound();
+      
+      const patterns = {
+        'heartbeat': [200, 100, 200, 400, 200, 100, 200],
+        'miss': [300, 200, 300, 200, 300],
+        'love': [150, 100, 150, 100, 150, 100, 150, 300, 150],
+        'think': [100, 150, 100, 150, 100],
+        'kiss': [200, 100, 200]
+      };
+      vibrate(patterns[emotion] || patterns['heartbeat']);
+      
+      createParticles('💖');
+      showToast('💓 Партнёр скучает!');
+      
+      document.getElementById('heart').classList.add('pulse');
+      setTimeout(() => document.getElementById('heart').classList.remove('pulse'), 1500);
+    }, 300);
   }
 
-  function playSound(soundId) {
-    if (!soundEnabled) return;
-    const audio = document.getElementById(soundId);
-    if (audio) {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
-    }
-  }
-
-  function toggleMusic() {
-    musicEnabled = !musicEnabled;
-    const bgMusic = document.getElementById('bgMusic');
-    bgMusic.volume = 0.3;
-    
-    if (musicEnabled) {
-      bgMusic.play().catch(() => {});
-      showToast('🎵 Музыка включена');
-    } else {
-      bgMusic.pause();
-      showToast('🎵 Музыка выключена');
-    }
-    
-    saveSettings();
-    updateToggles();
-  }
-
+  // Частицы
   function createParticles(emoji) {
-    for (let i = 0; i < 10; i++) {
-      setTimeout(() => {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.textContent = emoji;
-        particle.style.left = Math.random() * window.innerWidth + 'px';
-        particle.style.top = window.innerHeight - 100 + 'px';
-        particle.style.animationDelay = Math.random() * 0.5 + 's';
-        document.body.appendChild(particle);
-        
-        setTimeout(() => particle.remove(), 2000);
-      }, i * 100);
+    for (let i = 0; i < 8; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.textContent = emoji;
+      p.style.left = (Math.random() * 80 + 10) + '%';
+      p.style.bottom = '20%';
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2000);
     }
   }
 
-  function showToast(message) {
-    toast.textContent = message;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2000);
+  // Toast
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  // Theme
+  // Тема
   function toggleTheme() {
-    const body = document.body;
-    const currentTheme = body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('heartbeat_theme', newTheme);
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    localStorage.setItem('hb_theme', isDark ? 'light' : 'dark');
+  }
+  document.body.setAttribute('data-theme', localStorage.getItem('hb_theme') || 'light');
+
+  // Настройки
+  function openSettings() { document.getElementById('settingsModal').classList.add('show'); }
+  function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
+  
+  function toggleSetting(key) {
+    state[key] = !state[key];
+    document.getElementById(key + 'Toggle').classList.toggle('active', state[key]);
+    saveState();
+    showToast(key === 'sound' ? (state.sound ? '🔊 Вкл' : '🔇 Выкл') : (state.vibration ? '📳 Вкл' : '📴 Выкл'));
   }
 
-  // Load saved theme
-  const savedTheme = localStorage.getItem('heartbeat_theme') || 'light';
-  document.body.setAttribute('data-theme', savedTheme);
-
-  // Settings Modal
-  function openSettings() {
-    document.getElementById('settingsModal').classList.add('show');
-    if (meetDate) document.getElementById('meetDate').value = meetDate;
-    if (relationshipDate) document.getElementById('relationshipDate').value = relationshipDate;
-  }
-
-  function closeSettings() {
-    document.getElementById('settingsModal').classList.remove('show');
-  }
-
-  function toggleSoundSetting() {
-    soundEnabled = !soundEnabled;
-    saveSettings();
-    updateToggles();
-  }
-
-  function toggleVibrationSetting() {
-    vibrationEnabled = !vibrationEnabled;
-    saveSettings();
-    updateToggles();
-  }
-
-  function toggleMusicSetting() {
-    musicEnabled = !musicEnabled;
-    const bgMusic = document.getElementById('bgMusic');
-    if (musicEnabled) {
-      bgMusic.volume = 0.3;
-      bgMusic.play().catch(() => {});
-    } else {
-      bgMusic.pause();
-    }
-    saveSettings();
-    updateToggles();
-  }
-
-  function saveMeetDate() {
-    meetDate = document.getElementById('meetDate').value;
-    saveSettings();
-    updateCountdown();
-  }
-
-  function saveRelationshipDate() {
-    relationshipDate = document.getElementById('relationshipDate').value;
-    saveSettings();
-    updateDaysTogether();
-  }
-
-  function updateToggles() {
-    document.getElementById('soundToggle').classList.toggle('active', soundEnabled);
-    document.getElementById('vibrationToggle').classList.toggle('active', vibrationEnabled);
-    document.getElementById('musicToggle').classList.toggle('active', musicEnabled);
+  function saveDate(key) {
+    state[key] = document.getElementById(key).value;
+    saveState();
+    if (key === 'meetDate') updateCountdown();
+    if (key === 'relationshipDate') updateDaysTogether();
+    showToast('✅ Сохранено');
   }
 
   function updateCountdown() {
-    if (!meetDate) {
-      document.getElementById('countdown').textContent = '-- дней';
-      return;
-    }
-    
-    const days = Math.ceil((new Date(meetDate) - new Date()) / (1000 * 60 * 60 * 24));
-    document.getElementById('countdown').textContent = days > 0 ? `${days} дней` : 'Уже встретились! 🎉';
+    const el = document.getElementById('countdown');
+    if (!state.meetDate) { el.textContent = '-- дн.'; return; }
+    const days = Math.ceil((new Date(state.meetDate) - new Date()) / 86400000);
+    el.textContent = days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня! ' : 'Прошло';
   }
 
   function updateDaysTogether() {
-    if (!relationshipDate) {
-      document.getElementById('daysTogether').textContent = 'Вместе: 0 дней';
-      return;
-    }
-    
-    const days = Math.floor((new Date() - new Date(relationshipDate)) / (1000 * 60 * 60 * 24));
-    document.getElementById('daysTogether').textContent = `Вместе: ${days} дней`;
+    const el = document.getElementById('daysTogether');
+    if (!state.relationshipDate) { el.textContent = 'Вместе: --'; return; }
+    const days = Math.floor((new Date() - new Date(state.relationshipDate)) / 86400000);
+    el.textContent = `Вместе: ${days} дн.`;
   }
 
-  function incrementStat(stat) {
-    const key = stat === 'totalSent' ? 'heartbeat_total_sent' : 'heartbeat_streak';
-    let value = parseInt(localStorage.getItem(key) || '0');
-    value++;
-    localStorage.setItem(key, value.toString());
-    
-    if (stat === 'totalSent') {
-      document.getElementById('totalSent').textContent = value;
-    } else {
-      document.getElementById('streak').textContent = value;
-    }
+  function incrementStat(key) {
+    const k = key === 'totalSent' ? 'hb_total' : 'hb_streak';
+    let v = parseInt(localStorage.getItem(k) || '0') + 1;
+    localStorage.setItem(k, v);
+    document.getElementById(key).textContent = v;
   }
 
   function loadStats() {
-    document.getElementById('totalSent').textContent = localStorage.getItem('heartbeat_total_sent') || '0';
-    document.getElementById('streak').textContent = localStorage.getItem('heartbeat_streak') || '0';
+    document.getElementById('totalSent').textContent = localStorage.getItem('hb_total') || '0';
+    document.getElementById('streak').textContent = localStorage.getItem('hb_streak') || '0';
   }
 
-  // Check for incoming beat
-  const params = new URLSearchParams(location.search);
-  if (params.get('beat') === '1') {
-    setTimeout(() => {
-      playHeartbeat();
-      showToast('💓 Ваш партнёр скучает!');
-      createParticles('💖');
-    }, 500);
-  }
-
-  // Initialize
-  loadSettings();
-  loadStats();
-  updateCountdown();
-  updateDaysTogether();
-
-  // Update countdown every minute
-  setInterval(updateCountdown, 60000);
+  // Старт
+  loadState();
 </script>
 </body>
 </html>
