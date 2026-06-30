@@ -8,23 +8,26 @@ from aiogram.types import Message, WebAppInfo, InlineKeyboardButton, InlineKeybo
 from aiogram.filters import CommandStart, Command
 from aiogram.enums import ParseMode
 
-# Логирование — будем видеть ВСЁ что происходит
+# Логирование
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# ВАЖНО: Имена переменных должны быть ТОЧНО такими, как в Railway!
 BOT_TOKEN = os.environ.get("8523526764:AAHRv4AlNsmfJcclqqERrbzryHNOmAppc_Q")
 WEBAPP_URL = os.environ.get("https://heartbeat-coral.vercel.app/")
 
 if not BOT_TOKEN or not WEBAPP_URL:
-    raise ValueError("Не установлены BOT_TOKEN или WEBAPP_URL в Railway Variables!")
+    raise ValueError(" Ошибка: Не установлены переменные BOT_TOKEN или WEBAPP_URL в Railway Variables!")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 router = Router()
 dp.include_router(router)
+
+# ... дальше идет остальной код бота (init_db и т.д.) ...
 
 # ========== БАЗА ДАННЫХ ==========
 def get_db():
