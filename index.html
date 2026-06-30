@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Heartbeat 💓</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, sans-serif;
+    background: linear-gradient(135deg, #ff6b9d, #c44569);
+    color: #fff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .heart {
+    font-size: 180px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s;
+    filter: drop-shadow(0 0 30px rgba(255,255,255,0.5));
+  }
+  .heart:active { transform: scale(0.9); }
+  .heart.pulse { animation: pulse 1.2s infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.25); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.15); }
+    60% { transform: scale(1); }
+  }
+  h1 { margin-bottom: 20px; font-weight: 300; font-size: 24px; }
+  .hint { margin-top: 30px; opacity: 0.8; font-size: 14px; text-align: center; padding: 0 20px; }
+  .sent {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 32px;
+    background: rgba(255,255,255,0.2);
+    padding: 20px 40px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s;
+  }
+  .sent.show { transform: translate(-50%, -50%) scale(1); }
+</style>
+</head>
+<body>
+  <h1>Нажми на сердце 💗</h1>
+  <div class="heart" id="heart">❤️</div>
+  <div class="hint">Каждое нажатие — вибрация на телефоне любимого человека</div>
+  <div class="sent" id="sent">💞 Отправлено!</div>
+
+<script>
+  const tg = window.Telegram?.WebApp;
+  tg?.expand();
+  tg?.ready();
+
+  const heart = document.getElementById('heart');
+  const sent = document.getElementById('sent');
+  const params = new URLSearchParams(location.search);
+
+  // Если пришли по push-уведомлению — вибрируем!
+  if (params.get('beat') === '1') {
+    heart.classList.add('pulse');
+    vibrateHeartbeat();
+    // Повторим пару раз для эффекта
+    setTimeout(vibrateHeartbeat, 1500);
+    setTimeout(vibrateHeartbeat, 3000);
+  }
+
+  function vibrateHeartbeat() {
+    // Паттерн: тук-тук... пауза... тук-тук
+    if (navigator.vibrate) {
+      navigator.vibrate([120, 80, 120, 400, 120, 80, 120]);
+    }
+  }
+
+  heart.addEventListener('click', () => {
+    // Локальная вибрация у отправителя (подтверждение)
+    if (navigator.vibrate) navigator.vibrate(50);
+
+    heart.classList.add('pulse');
+    setTimeout(() => heart.classList.remove('pulse'), 2500);
+
+    sent.classList.add('show');
+    setTimeout(() => sent.classList.remove('show'), 1500);
+
+    // Отправляем сигнал боту
+    tg?.sendData('miss_you');
+  });
+</script>
+</body>
+</html>
