@@ -11,8 +11,10 @@ from aiogram.enums import ParseMode
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get("8523526764:AAHRv4AlNsmfJcclqqERrbzryHNOmAppc_Q")
-WEBAPP_URL = os.environ.get("https://heartbeat-coral.vercel.app/")
+# ИСПРАВЛЕНО: Теперь запрашиваются имена переменных, а не их значения
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+WEBAPP_URL = os.environ.get("WEBAPP_URL")
+
 if not BOT_TOKEN:
     raise ValueError("❌ BOT_TOKEN не установлен в Railway Variables!")
 if not WEBAPP_URL:
