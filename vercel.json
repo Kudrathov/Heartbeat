@@ -1,0 +1,5 @@
+{
+  "buildCommand": "echo 'static'",
+  "outputDirectory": "public",
+  "framework": null
+}
