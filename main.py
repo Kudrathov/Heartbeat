@@ -5,33 +5,48 @@ import logging
 from datetime import datetime
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import Message, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
+# Логирование — будем видеть ВСЁ что происходит
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ["8523526764:AAHRv4AlNsmfJcclqqERrbzryHNOmAppc_Q"]
-WEBAPP_URL = os.environ["https://heartbeat-coral.vercel.app/"]
+BOT_TOKEN = os.environ.get("8523526764:AAHRv4AlNsmfJcclqqERrbzryHNOmAppc_Q")
+WEBAPP_URL = os.environ.get("https://heartbeat-coral.vercel.app/")
+
+if not BOT_TOKEN or not WEBAPP_URL:
+    raise ValueError("Не установлены BOT_TOKEN или WEBAPP_URL в Railway Variables!")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-# Database
+# ========== БАЗА ДАННЫХ ==========
+def get_db():
+    conn = sqlite3.connect("couples.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    with sqlite3.connect("couples.db") as db:
+    with get_db() as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                started_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         db.execute("""
             CREATE TABLE IF NOT EXISTS couples (
                 user_id INTEGER PRIMARY KEY,
-                partner_id INTEGER,
-                username TEXT,
-                total_sent INTEGER DEFAULT 0,
-                streak INTEGER DEFAULT 0,
-                last_sent DATE
+                partner_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         db.execute("""
@@ -40,181 +55,239 @@ def init_db():
                 sender_id INTEGER,
                 receiver_id INTEGER,
                 emotion TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+    logger.info("✅ База данных инициализирована")
+
 init_db()
 
-def set_pair(a, b, ua, ub):
-    with sqlite3.connect("couples.db") as db:
-        db.execute("INSERT OR REPLACE INTO couples (user_id, partner_id, username) VALUES (?,?,?)", (a, b, ua))
-        db.execute("INSERT OR REPLACE INTO couples (user_id, partner_id, username) VALUES (?,?,?)", (b, a, ub))
-    logger.info(f"Пара создана: {a} <-> {b}")
+def save_user(user_id, username, first_name):
+    with get_db() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO users (user_id, username, first_name) VALUES (?,?,?)",
+            (user_id, username, first_name)
+        )
+        db.commit()
+    logger.info(f"👤 Пользователь сохранён: {user_id} (@{username})")
+
+def set_pair(user_id, partner_id):
+    with get_db() as db:
+        db.execute("INSERT OR REPLACE INTO couples (user_id, partner_id) VALUES (?,?)", (user_id, partner_id))
+        db.execute("INSERT OR REPLACE INTO couples (user_id, partner_id) VALUES (?,?)", (partner_id, user_id))
+        db.commit()
+    logger.info(f"💞 Пара создана: {user_id} <-> {partner_id}")
 
 def get_partner(user_id):
-    with sqlite3.connect("couples.db") as db:
-        cur = db.execute("SELECT partner_id FROM couples WHERE user_id=?", (user_id,))
-        row = cur.fetchone()
+    with get_db() as db:
+        row = db.execute("SELECT partner_id FROM couples WHERE user_id=?", (user_id,)).fetchone()
         if row:
-            logger.info(f"Партнёр для {user_id}: {row[0]}")
-            return row[0]
-        logger.warning(f"Партнёр для {user_id} не найден")
+            logger.info(f"🔍 Партнёр для {user_id}: {row['partner_id']}")
+            return row['partner_id']
+        logger.warning(f"❌ Партнёр для {user_id} НЕ НАЙДЕН")
         return None
 
-def update_stats(user_id, emotion):
-    with sqlite3.connect("couples.db") as db:
-        today = datetime.now().date()
-        db.execute("""
-            INSERT INTO couples (user_id, partner_id, username, total_sent, streak, last_sent)
-            VALUES (?, 0, '', 1, 1, ?)
-            ON CONFLICT(user_id) DO UPDATE SET
-                total_sent = total_sent + 1,
-                streak = CASE 
-                    WHEN last_sent = date('now', '-1 day') THEN streak + 1
-                    WHEN last_sent = date('now') THEN streak
-                    ELSE streak + 1
-                END,
-                last_sent = ?
-        """, (user_id, today, today))
-        
-        partner = get_partner(user_id)
-        if partner:
-            db.execute("INSERT INTO heartbeats (sender_id, receiver_id, emotion) VALUES (?,?,?)",
-                      (user_id, partner, emotion))
-            logger.info(f"Статистика обновлена: {user_id} -> {partner}, эмоция: {emotion}")
+def get_user_info(user_id):
+    with get_db() as db:
+        return db.execute("SELECT * FROM users WHERE user_id=?", (user_id,)).fetchone()
 
-# Handlers
-pending = {}
+def log_heartbeat(sender, receiver, emotion):
+    with get_db() as db:
+        db.execute("INSERT INTO heartbeats (sender_id, receiver_id, emotion) VALUES (?,?,?)",
+                  (sender, receiver, emotion))
+        db.commit()
+
+# ========== ОБРАБОТЧИКИ ==========
+
+pending_pairs = {}  # user_id -> partner_id (ожидают подтверждения)
 
 @router.message(CommandStart())
-async def start(msg: Message):
-    args = msg.text.split() if msg.text else []
+async def cmd_start(msg: Message):
+    user_id = msg.from_user.id
+    username = msg.from_user.username or ""
+    first_name = msg.from_user.first_name or ""
     
-    # Check for pairing
+    save_user(user_id, username, first_name)
+    logger.info(f" /start от {user_id} (@{username})")
+    
+    # Проверяем deep link (ссылка на связь)
+    args = msg.text.split() if msg.text else []
     if len(args) > 1 and args[1].startswith("pair_"):
         try:
             partner_id = int(args[1].split("_")[1])
-            if partner_id == msg.from_user.id:
-                await msg.answer("❌ Нельзя связаться с самим собой!")
+            logger.info(f" {user_id} получил ссылку на связь с {partner_id}")
+            
+            # Проверяем что партнёр существует в БД
+            partner_info = get_user_info(partner_id)
+            if not partner_info:
+                await msg.answer(
+                    "❌ Этот пользователь ещё не запускал бота. "
+                    "Попроси его сначала нажать /start в боте!",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=" Скопировать свою ссылку", callback_data="get_link")]
+                    ])
+                )
                 return
-                
-            pending[msg.from_user.id] = partner_id
+            
+            pending_pairs[user_id] = partner_id
+            
             kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Да, связать нас", callback_data="confirm_pair")]
+                [InlineKeyboardButton(text="✅ Да, связать нас!", callback_data="confirm_pair")]
             ])
             await msg.answer(
-                f"💕 **Вас хотят связать в Heartbeat!**\n\n"
-                f"Подтвердите связь с партнёром?",
+                f"💕 **Вас приглашают в Heartbeat!**\n\n"
+                f"Пользователь **{partner_info['first_name'] or partner_info['username']}** "
+                f"хочет связаться с тобой.\n\n"
+                f"Подтверди связь?",
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=kb
             )
-            logger.info(f"Запрос на связь: {msg.from_user.id} хочет связаться с {partner_id}")
             return
         except (ValueError, IndexError) as e:
-            logger.error(f"Ошибка разбора deep link: {e}")
+            logger.error(f"Ошибка deep link: {e}")
     
+    # Обычный старт
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="💗 Открыть Heartbeat",
-            web_app=WebAppInfo(url=WEBAPP_URL)
-        )],
-        [InlineKeyboardButton(text="🔗 Связаться с партнёром", callback_data="link")],
-        [InlineKeyboardButton(text="📊 Статистика", callback_data="stats")]
+        [InlineKeyboardButton(text="💗 Открыть Heartbeat", web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton(text="🔗 Связаться с партнёром", callback_data="get_link")],
+        [InlineKeyboardButton(text=" Мой статус", callback_data="status")],
+        [InlineKeyboardButton(text="📖 Как это работает?", callback_data="help")]
     ])
+    
     await msg.answer(
-        "💓 **Добро пожаловать в Heartbeat!**\n\n"
-        "Отправляй сигналы любимому человеку — "
-        "его телефон **завибрирует** и получит уведомление! 📳💕\n\n"
-        "Нажми кнопку ниже, чтобы начать 💕",
+        f"💓 **Привет, {first_name or 'друг'}!**\n\n"
+        f"Это **Heartbeat** — приложение для пар на расстоянии.\n\n"
+        f"1️ Нажми **🔗 Связаться с партнёром**\n"
+        f"2️⃣ Отправь ссылку любимому человеку\n"
+        f"3️⃣ Когда он подтвердит — вы сможете отправлять друг другу сигналы!\n\n"
+        f"⚠️ **Важно:** партнёр тоже должен нажать /start в этом боте!",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=kb
     )
 
-@router.callback_query(F.data == "link")
-async def link_cmd(cb: CallbackQuery):
-    bot_username = (await bot.get_me()).username
-    link = f"https://t.me/{bot_username}?start=pair_{cb.from_user.id}"
+@router.callback_query(F.data == "get_link")
+async def get_link(cb: CallbackQuery):
+    bot_info = await bot.get_me()
+    link = f"https://t.me/{bot_info.username}?start=pair_{cb.from_user.id}"
+    
+    partner = get_partner(cb.from_user.id)
+    status_text = "✅ Вы связаны!" if partner else "❌ Пока не связаны"
+    
     await cb.message.answer(
-        f"🔗 **Отправь эту ссылку партнёру:**\n\n"
+        f"📊 **Твой статус:** {status_text}\n\n"
+        f" **Твоя ссылка для партнёра:**\n\n"
         f"`{link}`\n\n"
-        "Когда партнёр перейдёт по ссылке и подтвердит связь — "
-        "вы сможете отправлять друг другу сигналы! 💕",
+        f" Скопируй и отправь любимому человеку!\n\n"
+        f"️ Он должен сначала нажать /start в боте, потом перейти по ссылке.",
         parse_mode=ParseMode.MARKDOWN
     )
 
 @router.callback_query(F.data == "confirm_pair")
 async def confirm_pair(cb: CallbackQuery):
-    a = cb.from_user.id
-    b = pending.get(a)
+    user_id = cb.from_user.id
+    partner_id = pending_pairs.get(user_id)
     
-    if not b:
-        await cb.answer("❌ Ссылка устарела. Запросите новую ссылку.", show_alert=True)
+    logger.info(f" {user_id} нажал confirm_pair, pending={partner_id}")
+    
+    if not partner_id:
+        await cb.answer("❌ Ссылка устарела. Попроси новую.", show_alert=True)
         return
     
+    # Создаём пару
+    set_pair(user_id, partner_id)
+    del pending_pairs[user_id]
+    
+    await cb.message.edit_text(
+        "💞 **Вы связаны!**\n\n"
+        "Теперь вы можете отправлять друг другу сигналы любви! 💓\n\n"
+        "Нажми кнопку ниже, чтобы открыть приложение:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💗 Открыть Heartbeat", web_app=WebAppInfo(url=WEBAPP_URL))]
+        ])
+    )
+    
+    # УВЕДОМЛЕНИЕ ПАРТНЁРУ
     try:
-        set_pair(a, b, cb.from_user.username, "")
-        del pending[a]
-        
-        await cb.message.answer(
-            "💞 **Вы связаны!**\n\n"
-            "Теперь вы можете отправлять друг другу сигналы любви! "
-            "Откройте Heartbeat и нажмите на сердечко 💓",
-            parse_mode=ParseMode.MARKDOWN
+        partner_info = get_user_info(partner_id)
+        await bot.send_message(
+            partner_id,
+            f"🎉 **Отличные новости!**\n\n"
+            f"**{cb.from_user.first_name or 'Твой партнёр'}** подтвердил связь с тобой!\n\n"
+            f"Теперь вы можете отправлять друг другу сигналы. "
+            f"Открой Heartbeat и нажми на сердечко! 💓",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💗 Открыть Heartbeat", web_app=WebAppInfo(url=WEBAPP_URL))]
+            ])
         )
-        
-        # Отправляем уведомление партнёру
-        try:
-            await bot.send_message(
-                b,
-                "💞 **Ваш партнёр принял связь!**\n\n"
-                "Откройте Heartbeat и отправьте первый сигнал любви! 💓\n\n"
-                "Нажмите на кнопку ниже, чтобы открыть приложение:",
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="💗 Открыть Heartbeat", web_app=WebAppInfo(url=WEBAPP_URL))]
-                ])
-            )
-            logger.info(f"Уведомление отправлено партнёру {b}")
-        except TelegramBadRequest as e:
-            logger.error(f"Не удалось отправить сообщение партнёру {b}: {e}")
-            await cb.answer("Партнёр не найден или заблокировал бота", show_alert=True)
-            
+        logger.info(f"✅ Уведомление отправлено партнёру {partner_id}")
     except Exception as e:
-        logger.error(f"Ошибка при подтверждении пары: {e}")
-        await cb.answer("Произошла ошибка. Попробуйте ещё раз.", show_alert=True)
+        logger.error(f"❌ Не удалось отправить уведомление партнёру {partner_id}: {e}")
+        await bot.send_message(
+            user_id,
+            f"⚠️ Пара создана, но не удалось уведомить партнёра. "
+            f"Возможно, он не нажал /start в боте. Попроси его сделать это!",
+        )
 
-@router.callback_query(F.data == "stats")
-async def show_stats(cb: CallbackQuery):
-    with sqlite3.connect("couples.db") as db:
-        cur = db.execute("SELECT total_sent, streak FROM couples WHERE user_id=?", (cb.from_user.id,))
-        row = cur.fetchone()
-        
-        if row:
-            total, streak = row
-            await cb.message.answer(
-                f"📊 **Ваша статистика:**\n\n"
-                f"💗 Всего отправлено: {total}\n"
-                f"🔥 Дней подряд: {streak}",
-                parse_mode=ParseMode.MARKDOWN
-            )
-        else:
-            await cb.message.answer("Пока нет статистики. Отправьте первый сигнал! 💓")
+@router.callback_query(F.data == "status")
+async def show_status(cb: CallbackQuery):
+    user_id = cb.from_user.id
+    partner = get_partner(user_id)
+    user_info = get_user_info(user_id)
+    
+    if partner:
+        partner_info = get_user_info(partner)
+        partner_name = partner_info['first_name'] if partner_info else f"ID {partner}"
+        text = (
+            f"✅ **Вы связаны!**\n\n"
+            f"👤 Ты: {user_info['first_name'] or user_info['username'] or 'Аноним'}\n"
+            f"💕 Партнёр: {partner_name}\n\n"
+            f"Теперь нажимайте на сердечко в приложении! 💓"
+        )
+    else:
+        text = (
+            f"❌ **Вы пока не связаны.**\n\n"
+            f"Нажми **🔗 Связаться с партнёром** и отправь ему ссылку.\n\n"
+            f"⚠️ Партнёр должен сначала нажать /start в боте!"
+        )
+    
+    await cb.message.answer(text, parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(F.data == "help")
+async def show_help(cb: CallbackQuery):
+    await cb.message.answer(
+        "📖 **Как работает Heartbeat:**\n\n"
+        "1️⃣ Оба нажимают /start в боте\n"
+        "2️⃣ Один генерирует ссылку и отправляет другому\n"
+        "3️ Второй переходит по ссылке и подтверждает\n"
+        "4️⃣ Готово! Теперь можно отправлять сигналы\n\n"
+        "💓 Когда ты нажимаешь на сердечко:\n"
+        "• Партнёр получает уведомление в Telegram\n"
+        "• Он нажимает на кнопку в сообщении\n"
+        "• Открывается приложение и телефон **вибрирует**\n\n"
+        "⚠️ Уведомления приходят только если партнёр нажал /start!",
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 @router.message(F.web_app_data)
 async def webapp_data(msg: Message):
+    user_id = msg.from_user.id
     data = msg.web_app_data.data
-    logger.info(f"Получены данные из WebApp от {msg.from_user.id}: {data}")
     
-    partner = get_partner(msg.from_user.id)
+    logger.info(f"📲 WebApp данные от {user_id}: {data}")
     
+    partner = get_partner(user_id)
     if not partner:
         await msg.answer(
-            "❌ Сначала свяжитесь с партнёром через кнопку 🔗",
+            "❌ Сначала свяжитесь с партнёром!\n\n"
+            "Нажми кнопку 🔗 Связаться с партнёром в боте.",
             show_alert=True
         )
         return
     
-    emotion_texts = {
+    # Определяем эмоцию
+    emotions = {
         'miss_you': ('💗', 'Скучаю по тебе!', 'heartbeat'),
         'emotion_miss': ('💭', 'Скучаю...', 'miss'),
         'emotion_love': ('💖', 'Люблю тебя!', 'love'),
@@ -222,17 +295,17 @@ async def webapp_data(msg: Message):
         'emotion_kiss': ('😘', 'Посылаю поцелуй!', 'kiss')
     }
     
-    emoji, text, vibe_type = emotion_texts.get(data, ('💗', 'Отправил сигнал!', 'heartbeat'))
+    emoji, text, vibe = emotions.get(data, ('💗', 'Отправил сигнал!', 'heartbeat'))
     
-    # Update stats
-    update_stats(msg.from_user.id, data)
+    # Логируем
+    log_heartbeat(user_id, partner, data)
+    logger.info(f"💓 {user_id} -> {partner}: {text}")
     
-    # Формируем URL с параметром вибрации
-    beat_url = f"{WEBAPP_URL}?beat=1&emotion={vibe_type}"
-    
+    # Отправляем УВЕДОМЛЕНИЕ партнёру
+    beat_url = f"{WEBAPP_URL}?beat=1&emotion={vibe}"
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text=f"{emoji} Открыть и почувствовать",
+            text=f"{emoji} Почувствовать",
             web_app=WebAppInfo(url=beat_url)
         )]
     ])
@@ -240,17 +313,45 @@ async def webapp_data(msg: Message):
     try:
         await bot.send_message(
             partner,
-            f"{emoji} **Ваш любимый человек: {text}**\n\n"
-            f"Нажмите на кнопку ниже, чтобы **почувствовать вибрацию** и ответить! 💓",
+            f"{emoji} **Твой любимый человек: {text}**\n\n"
+            f"Нажми на кнопку, чтобы почувствовать вибрацию! 💓",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=kb
         )
-        logger.info(f"Уведомление отправлено партнёру {partner}: {text}")
-        await msg.answer(f"✅ {text} Сигнал отправлен партнёру!")
-    except TelegramBadRequest as e:
-        logger.error(f"Не удалось отправить уведомление партнёру {partner}: {e}")
-        await msg.answer("❌ Не удалось отправить сигнал. Возможно, партнёр заблокировал бота.", show_alert=True)
+        logger.info(f"✅ Уведомление доставлено партнёру {partner}")
+        await msg.answer(f"✅ Сигнал отправлен!")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки партнёру {partner}: {e}")
+        await msg.answer(
+            "❌ Не удалось отправить сигнал. "
+            "Возможно, партнёр заблокировал бота или не нажал /start.",
+            show_alert=True
+        )
+
+@router.message(Command("debug"))
+async def debug_cmd(msg: Message):
+    """Команда для отладки — показывает всё что в БД"""
+    user_id = msg.from_user.id
+    with get_db() as db:
+        users = db.execute("SELECT * FROM users").fetchall()
+        couples = db.execute("SELECT * FROM couples").fetchall()
+        heartbeats = db.execute("SELECT * FROM heartbeats ORDER BY id DESC LIMIT 5").fetchall()
+    
+    text = f"🔧 **DEBUG**\n\n"
+    text += f"👥 **Пользователи ({len(users)}):**\n"
+    for u in users:
+        text += f"  • {u['user_id']} @{u['username']} ({u['first_name']})\n"
+    
+    text += f"\n💞 **Пары ({len(couples)}):**\n"
+    for c in couples:
+        text += f"  • {c['user_id']} <-> {c['partner_id']}\n"
+    
+    text += f"\n💓 **Последние сигналы:**\n"
+    for h in heartbeats:
+        text += f"  • {h['sender_id']} -> {h['receiver_id']}: {h['emotion']}\n"
+    
+    await msg.answer(text, parse_mode=ParseMode.MARKDOWN)
 
 if __name__ == "__main__":
-    logger.info("Запуск бота...")
+    logger.info(f"🚀 Запуск бота... URL: {WEBAPP_URL}")
     asyncio.run(dp.start_polling(bot))
