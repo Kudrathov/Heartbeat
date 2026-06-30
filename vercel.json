@@ -1,5 +1,13 @@
 {
-  "buildCommand": "echo 'static'",
-  "outputDirectory": "public",
-  "framework": null
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
 }
