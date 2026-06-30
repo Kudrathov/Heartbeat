@@ -5,8 +5,8 @@ from aiogram.types import Message, WebAppInfo, InlineKeyboardButton, InlineKeybo
 from aiogram.filters import CommandStart
 from aiogram.enums import ParseMode
 
-BOT_TOKEN = "@HerVibe_Bot"
-WEBAPP_URL = "https://your-domain.com/index.html"  # куда залишь Mini App
+BOT_TOKEN = "8523526764:AAHRv4AlNsmfJcclqqERrbzryHNOmAppc_Q"
+WEBAPP_URL = "https://heartbeat-coral.vercel.app/"  # куда залишь Mini App
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
